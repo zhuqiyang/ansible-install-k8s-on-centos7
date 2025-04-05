@@ -1,4 +1,3 @@
-注意扑道环境docker目录需要修改
 keepalived如果不需要安装只需注释掉,到文件16.2_install_master_docker_runtime.yml中去注释
 
 1、安装master前执行init.sh脚本来生成hosts、vars.yml文件.
