@@ -1,0 +1,15 @@
+[k8smaster]
+master01.k8s.local ansible_host=192.168.0.151 etcd_hostname=etcd01.k8s.local sn=1 
+master02.k8s.local ansible_host=192.168.0.152 etcd_hostname=etcd02.k8s.local sn=2 
+master03.k8s.local ansible_host=192.168.0.153 etcd_hostname=etcd03.k8s.local sn=3
+
+[k8smaster:vars]
+etcd01_hostname=etcd01.k8s.local
+etcd02_hostname=etcd02.k8s.local
+etcd03_hostname=etcd03.k8s.local
+master01_hostname=master01.k8s.local
+master02_hostname=master02.k8s.local
+master03_hostname=master03.k8s.local
+
+[k8snodes]
+#node01.k8s.local ansible_host=192.168.0.59

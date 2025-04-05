@@ -1,0 +1,15 @@
+- name: mkdir /root/coredns/
+  file:
+    path: /root/coredns/
+    state: directory
+- name: copy coredns directory to nodes
+  copy:
+    src: coredns/
+    dest: /root/coredns/
+
+- name: tar -xf coredns-1.24.1-helm.tgz
+  shell: cd /root/coredns/; tar -xf coredns-1.24.1-helm.tgz
+- name: copy coredns-values.yaml.j2 to /root/coredns/coredns/
+  template:
+    src: coredns-values.yaml.j2
+    dest: /root/coredns/coredns/values.yaml

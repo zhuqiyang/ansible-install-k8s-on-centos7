@@ -1,0 +1,10 @@
+- hosts: k8smaster
+  become: true
+  remote_user: root
+  any_errors_fatal: true
+  roles:
+  - role: kubernetes
+  vars_files:
+  - vars.yml
+  vars:
+  - install_type: 'master'

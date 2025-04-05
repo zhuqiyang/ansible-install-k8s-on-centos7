@@ -1,0 +1,181 @@
+# close firewall
+- name: systemctl disable --now firewalld
+  shell: systemctl disable --now firewalld
+
+# close selinux
+- name: close selinux
+  shell: enforce_status=$(getenforce); if [[ "$enforce_status" == "Enforcing" ]]; then setenforce 0; fi;
+- name: close selinux set config
+  shell: sed -i 's#SELINUX=enforcing#SELINUX=disabled#g' /etc/selinux/config
+
+# close swap
+- name: swapoff -a
+  shell: swapoff -a
+- name: close swap set file /etc/fstab
+  shell: sed -ri 's/.*swap.*/#&/' /etc/fstab
+- name: sysctl -w vm.swappiness=0
+  shell: sysctl -w vm.swappiness=0
+
+# install rpms
+- name: mkdir /root/rpms/
+  file:
+    path: /root/rpms/
+    state: directory
+- name: copy rpms to nodes
+  copy:
+    src: files/rpms/
+    dest: /root/rpms/
+- name: rpm -i --force --nodeps /root/rpms/*rpm
+  shell: rpm -i --force --nodeps /root/rpms/*rpm
+
+# set ulimit
+- name: ulimit -SHn 655350
+  shell: ulimit -SHn 655350
+- name: copy limits.conf to /etc/security/
+  copy:
+    src: configs/limits.conf
+    dest: /etc/security/limits.conf
+
+# install ipvs (for k8s service)
+- name: copy files/ipvs to nodes
+  copy:
+    src: files/ipvs/
+    dest: /root/ipvs/
+- name: rpm -i --force --nodeps /root/ipvs/*.rpm
+  shell: rpm -i --force --nodeps /root/ipvs/*.rpm
+
+# install conntrack (for cilium)
+- name: copy files/conntrack to nodes
+  copy:
+    src: files/conntrack/
+    dest: /root/conntrack/
+- name: rpm -i --force --nodeps /root/conntrack/*.rpm
+  shell: rpm -i --force --nodeps /root/conntrack/*.rpm
+
+# load ipvs modules
+- name: copy ipvs.conf to /etc/modules-load.d/ipvs.conf
+  copy:
+    src: configs/ipvs.conf
+    dest: /etc/modules-load.d/
+- name: systemctl restart systemd-modules-load.service
+  shell: systemctl restart systemd-modules-load.service
+- name: lsmod
+  shell: lsmod | grep -e ip_vs -e nf_conntrack
+  register: lsmod_stdout
+- name: print lsmod_stdout
+  debug:
+    var: lsmod_stdout.stdout_lines
+
+# set network and kernel parameters
+- name: copy k8s.conf to /etc/sysctl.d/
+  copy:
+    src: configs/k8s.conf
+    dest: /etc/sysctl.d/
+
+# enable forwarding for docker/containerd
+- name: copy 99-kubernetes-cri.conf to /etc/sysctl.d/
+  copy:
+    src: configs/99-kubernetes-cri.conf
+    dest: /etc/sysctl.d/
+
+- name: sysctl --system
+  shell: sysctl --system
+  register: sysctl_stdout
+  no_log: true
+- name: print sysctl --system
+  debug:
+    var: sysctl_stdout.stdout_lines
+
+# load modules for docker/containerd
+- name: copy configs/containerd.conf to /etc/modules-load.d/
+  copy:
+    src: configs/containerd.conf
+    dest: /etc/modules-load.d/
+- name: systemctl restart systemd-modules-load.service
+  shell: systemctl restart systemd-modules-load.service
+
+# update libseccomp to version 2.5.1-1 for runc
+#
+# # ./runc --version
+# runc version 1.1.7
+# commit: v1.1.7-0-g860f061
+# spec: 1.0.2-dev
+# go: go1.20.4
+# libseccomp: 2.5.1
+- name: copy libseccomp to /root/libseccomp/
+  copy:
+    src: libseccomp/libseccomp-2.5.1-1.el8.x86_64.rpm
+    dest: /root/libseccomp/
+- name: rpm -i --force --nodeps /root/libseccomp/libseccomp-2.5.1-1.el8.x86_64.rpm
+  shell: rpm -i --force --nodeps /root/libseccomp/libseccomp-2.5.1-1.el8.x86_64.rpm
+- name: if rpm -q libseccomp-2.3.1-4.el7.x86_64 > /dev/null; then rpm -e --nodeps libseccomp-2.3.1-4.el7.x86_64; fi;
+  shell: if rpm -q libseccomp-2.3.1-4.el7.x86_64; then rpm -e --nodeps libseccomp-2.3.1-4.el7.x86_64; fi;
+
+# set time server
+- name: copy chrony/ to /root/chrony/
+  copy:
+    src: chrony/
+    dest: /root/chrony/
+- name: rpm -i --force --nodeps /root/chrony/*rpm
+  shell: rpm -i --force --nodeps /root/chrony/*rpm
+- name: copy chrony.conf.j2 to /etc/chrony.conf
+  template:
+    src: chrony.conf.j2
+    dest: /etc/chrony.conf
+
+- name: timedatectl set-timezone Asia/Shanghai
+  shell: timedatectl set-timezone Asia/Shanghai
+- name: systemctl stop chronyd.service
+  shell: systemctl stop chronyd.service
+- name: chronyd -q 'server {{ time_server_address }} iburst'
+  shell: chronyd -q 'server {{ time_server_address }} iburst'
+- name: systemctl enable --now chronyd
+  shell: systemctl enable --now chronyd
+
+- name: chronyc -a makestep
+  shell: chronyc -a makestep
+- name: chronyc sources -v
+  shell: chronyc sources -v
+  register: chronyc_sources
+  no_log: true
+- name: show chronyc sources
+  debug:
+    var: chronyc_sources.stdout_lines
+
+# set hosts
+- name: cp hosts.j2 to /etc/hosts
+  template:
+    src: hosts.j2
+    dest: /etc/hosts
+
+# set hostname
+- name: copy network.j2 to /etc/sysconfig/network
+  template:
+    src: network.j2
+    dest: /etc/sysconfig/network
+  vars:
+    hostname: "{{ inventory_hostname }}"
+- name: set hostname
+  hostname:
+    name: "{{ inventory_hostname }}"
+
+# update kernel (update kernel must reboot system)
+- name: copy kernel/kernel-ml-6.4.4-1.el7.elrepo.x86_64.rpm to /root/kernel/
+  copy:
+    src: kernel/kernel-ml-6.4.4-1.el7.elrepo.x86_64.rpm
+    dest: /root/kernel/
+- name: rpm -i --force --nodeps /root/kernel/kernel-ml-6.4.4-1.el7.elrepo.x86_64.rpm
+  shell: rpm -i --force --nodeps /root/kernel/kernel-ml-6.4.4-1.el7.elrepo.x86_64.rpm
+- name: grubby --set-default /boot/vmlinuz-6.4.4-1.el7.elrepo.x86_64
+  shell: grubby --set-default /boot/vmlinuz-6.4.4-1.el7.elrepo.x86_64
+- name: grubby --default-kernel
+  shell: grubby --default-kernel
+  register: default_kernel
+  no_log: true
+- name: show default kernel
+  debug:
+    var: default_kernel.stdout_lines
+
+# reboot after update kernel
+- name: reboot
+  shell: reboot

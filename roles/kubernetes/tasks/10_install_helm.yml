@@ -1,0 +1,15 @@
+- name: mkdir /root/helm/
+  file:
+    path: /root/helm/
+    state: directory
+- name: copy helm/ to nodes
+  copy:
+    src: helm/
+    dest: /root/helm/
+- name: 
+  unarchive:
+    src: /root/helm/helm-v3.12.1-linux-amd64.tar.gz
+    dest: /root/helm/
+    copy: no
+- name: mv /root/helm/linux-amd64/helm /usr/local/bin/
+  shell: mv /root/helm/linux-amd64/helm /usr/local/bin/

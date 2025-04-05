@@ -1,0 +1,22 @@
+# If the Pod IP shows 10.88.0.0, remove the file /etc/cni/net.d/10-containerd-net.conflist, please refer to https://zhuanlan.zhihu.com/p/608369342
+- name: delete /etc/cni/net.d/10-containerd-net.conflist
+  file:
+    path: /etc/cni/net.d/10-containerd-net.conflist
+    state: absent
+
+- name: mkdir /root/flannel/
+  file:
+    path: /root/flannel/
+    state: directory
+- name: copy flannel images to nodes
+  copy:
+    src: flannel/
+    dest: /root/flannel/
+
+- name: ctr ns create k8s.io
+  shell: line=`ctr ns ls | grep k8s.io | wc -l`; if [ $line -eq 0 ]; then ctr ns create k8s.io; fi;
+
+- name: copy kube-flannel.yaml to nodes
+  template:
+    src: kube-flannel.yml.j2
+    dest: /root/flannel/kube-flannel.yml

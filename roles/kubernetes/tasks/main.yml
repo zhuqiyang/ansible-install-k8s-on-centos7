@@ -1,0 +1,27 @@
+#
+# create kubernetes certificate
+#
+- name: create certificate
+  include_tasks: 00.0_local_exec.yml
+  when: install_type == "cert"
+
+#
+# install kubernetes master nodes
+#
+- name: install master
+  include_tasks: install_master.yml
+  when: install_type == "master"
+
+#
+# install kubernetes work nodes
+#
+- name: install nodes
+  include_tasks: install_nodes.yml
+  when: install_type == "node"
+
+#
+# install kubernetes work nodes
+#
+- name: install application
+  include_tasks: install_base_application.yml
+  when: install_type == "app"

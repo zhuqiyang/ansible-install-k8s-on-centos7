@@ -1,0 +1,24 @@
+# check cgroup
+- name: check if the file /proc/1/ns/cgroup exists
+  shell: if [ -f /proc/1/ns/cgroup ]; then ls /proc/1/ns/cgroup; else echo 'cgroup /proc/1/ns/cgroup not exists';exit 1; fi
+
+# copy docker/ to nodes
+- name: copy docker/ to nodes
+  copy:
+    src: docker/
+    dest: /root/docker/
+
+# install docker from binary
+- name: install docker from binary
+  script: scripts/install_docker_binary.sh
+
+# cri-docker set pause image to harbor address
+- name: copy cri-docker.service.j2 to /usr/lib/systemd/system/cri-docker.service
+  template:
+    src: cri-docker.service.j2
+    dest: /usr/lib/systemd/system/cri-docker.service
+- name: systemctl daemon-reload
+  shell: systemctl daemon-reload
+- name: systemctl restart cri-docker.service
+  shell: systemctl restart cri-docker.service
+

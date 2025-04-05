@@ -1,0 +1,19 @@
+- name: mkdir /root/ingress-nginx/
+  file:
+    path: /root/ingress-nginx/
+    state: directory
+- name: copy ingress-nginx directory to nodes
+  copy:
+    src: ingress-nginx/
+    dest: /root/ingress-nginx/
+
+- name: tar -xf ingress-nginx-4.7.1-helm-chart.tgz
+  shell: cd /root/ingress-nginx/; tar -xf ingress-nginx-4.7.1-helm-chart.tgz
+- name: copy ingress-values.yaml.j2 to /root/ingress-nginx/ingress-nginx/
+  template:
+    src: ingress-values.yaml.j2
+    dest: /root/ingress-nginx/ingress-nginx/values.yaml
+- name: copy ingress-test.yaml.j2 to /root/ingress-nginx/ingress-nginx/
+  template:
+    src: ingress-test.yaml.j2
+    dest: /root/ingress-nginx/ingress-test.yaml

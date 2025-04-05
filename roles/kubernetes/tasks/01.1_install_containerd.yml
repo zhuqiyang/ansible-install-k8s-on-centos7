@@ -1,0 +1,58 @@
+# check cgroup
+- name: check if the file /proc/1/ns/cgroup exists
+  shell: if [ -f /proc/1/ns/cgroup ]; then ls /proc/1/ns/cgroup; else echo 'cgroup /proc/1/ns/cgroup not exists';exit 1; fi
+
+# copy files
+- name: copy containerd/ to nodes
+  copy:
+    src: containerd/
+    dest: /root/containerd/
+
+# install containerd
+- name: check if containerd is installed
+  stat:
+    path: /run/containerd/containerd.sock
+  register: file_stat
+- name: install containerd
+  script: scripts/install_containerd.sh 
+  when: not file_stat.stat.exists
+
+# set config pause image
+- name: copy config.toml.j2 to /etc/containerd/
+  template:
+    src: config.toml.j2
+    dest: /etc/containerd/config.toml
+
+# config harbor
+- name: mkdir /etc/containerd/certs.d/{{ harbor_hostname }}/
+  file:
+    path: /etc/containerd/certs.d/{{ harbor_hostname }}/
+    state: directory
+- name: copy hosts.toml.j2 to /etc/containerd/certs.d/{{ harbor_hostname }}/
+  template:
+    src: hosts.toml.j2
+    dest: /etc/containerd/certs.d/{{ harbor_hostname }}/hosts.toml
+
+## update runc to version 1.1.7
+##- name: copy runc.amd64 to /usr/local/sbin/runc
+##  copy:
+##    src: packages/runc.amd64
+##    dest: /usr/local/sbin/runc
+##    mode: "0755"
+##- name: copy runc.amd64 to /usr/local/bin/runc
+##  copy:
+##    src: packages/runc.amd64
+##    dest: /usr/local/bin/runc
+##    mode: "0755"
+##- name: copy runc.amd64 to /usr/bin/runc
+##  copy:
+##    src: packages/runc.amd64
+##    dest: /usr/bin/runc
+##    mode: "0755"
+#
+- name: systemctl restart containerd
+  shell: systemctl restart containerd
+
+- name: crictl ps
+  shell: crictl ps
+

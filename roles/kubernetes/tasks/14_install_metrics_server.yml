@@ -1,0 +1,12 @@
+- name: mkdir metrics-server/
+  file:
+    path: /root/metrics-server/
+    state: directory
+- name: copy metrics-server/ to nodes
+  copy:
+    src: metrics-server/
+    dest: /root/metrics-server/
+- name: copy metrics-server.yaml.j2 to /root/metrics-server/
+  template:
+    src: metrics-server.yaml.j2
+    dest: /root/metrics-server/metrics-server.yaml

@@ -1,0 +1,9 @@
+- include: 01.2_install_docker.yml
+- include: 02_install_etcd.yml
+- include: 03_install_keepalived.yml
+- include: 04_install_haproxy.yml
+- include: 05_install_apiserver.yml
+- include: 06_install_controller_manager.yml
+- include: 07_install_scheduler.yml
+- include: 08.2_install_kubelet_docker.yml
+- include: 09_install_kube_proxy.yml

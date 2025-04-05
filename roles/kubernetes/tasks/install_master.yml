@@ -1,0 +1,36 @@
+#
+# install kubernetes master nodes
+#
+
+# init
+- name: check init is ok
+  script: scripts/check_init.sh
+  register: check_init
+- name: print check init
+  debug:
+    var: check_init.stdout
+
+- name: 00.1_init_system.yml
+  include_tasks: 00.1_init_system.yml
+  when: check_init.stdout == "InitNotOk"
+
+
+# install
+- name: check master is ok
+  script: scripts/check_master_isok.sh
+  register: check_master
+- name: print check master
+  debug:
+    var: check_master.stdout
+
+- name: 16.1_install_master_containerd_runtime.yml
+  include_tasks: 16.1_install_master_containerd_runtime.yml
+  when:
+  - check_master.stdout == "KubernetesNotInstalled"
+  - container_runtime  == "containerd"
+
+- name: 16.2_install_master_docker_runtime.yml
+  include_tasks: 16.2_install_master_docker_runtime.yml
+  when:
+  - check_master.stdout == "KubernetesNotInstalled"
+  - container_runtime  == "docker"

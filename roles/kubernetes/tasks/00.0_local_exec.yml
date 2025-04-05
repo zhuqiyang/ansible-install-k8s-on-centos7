@@ -1,0 +1,142 @@
+# install cfssl
+- name: command -v cfssl
+  run_once: true
+  delegate_to: 127.0.0.1
+  shell: command -v cfssl
+  register: cfssl_installed
+  ignore_errors: yes
+- name: print check cfssl
+  run_once: true
+  debug:
+    var: cfssl_installed.stdout_lines
+- name: copy packages/cfssl_1.6.4_linux_amd64 to /usr/local/bin/cfssl
+  delegate_to: 127.0.0.1
+  run_once: true
+  copy:
+    src: packages/cfssl_1.6.4_linux_amd64
+    dest: /usr/local/bin/cfssl
+    mode: 0755
+  when: cfssl_installed.rc != 0
+
+# install cfssljson
+- name: command -v cfssljson
+  delegate_to: 127.0.0.1
+  run_once: true
+  shell: command -v cfssljson
+  register: cfssljson_installed
+  ignore_errors: yes
+- name: print check cfssljson
+  run_once: true
+  debug:
+    var: cfssljson_installed.stdout_lines
+- name: copy packages/cfssljson_1.6.4_linux_amd64 to /usr/local/bin/cfssljson
+  delegate_to: 127.0.0.1
+  run_once: true
+  copy:
+    src: packages/cfssljson_1.6.4_linux_amd64
+    dest: /usr/local/bin/cfssljson
+    mode: 0755
+  when: cfssljson_installed.rc != 0
+
+# install kubectl
+- name: command -v kubectl
+  delegate_to: 127.0.0.1
+  run_once: true
+  shell: command -v kubectl
+  register: kubectl_installed
+  ignore_errors: yes
+- name: print check kubectl
+  run_once: true
+  debug:
+    var: kubectl_installed.stdout_lines
+- name: copy kubernetes/server/bin/kubectl to /usr/local/bin/kubectl
+  delegate_to: 127.0.0.1
+  run_once: true
+  copy:
+    src: kubernetes/server/bin/kubectl
+    dest: /usr/local/bin/kubectl
+    mode: 0755
+  when: kubectl_installed.rc != 0
+
+# show current directory
+- name: show current directory
+  delegate_to: 127.0.0.1
+  run_once: true
+  shell: pwd
+  register: pwd_stdout
+- name: print pwd result
+  run_once: true
+  debug:
+    var: pwd_stdout.stdout_lines
+
+# configration ssl_vars.sh
+- name: copy ssl_vars.sh.j2 to {{ pwd_stdout.stdout }}/roles/kubernetes/files/cert/ssl_vars.sh
+  delegate_to: 127.0.0.1
+  run_once: true
+  template:
+    src: ssl_vars.sh.j2
+    dest: "{{ pwd_stdout.stdout }}/roles/kubernetes/files/cert/ssl_vars.sh"
+- name: cat "{{ pwd_stdout.stdout }}/roles/kubernetes/files/cert/ssl_vars.sh"
+  delegate_to: 127.0.0.1
+  run_once: true
+  register: cat_ssl_vars_stdout
+  shell: cat "{{ pwd_stdout.stdout }}/roles/kubernetes/files/cert/ssl_vars.sh"
+  no_log: true
+- name: print ssl_vars.sh
+  run_once: true
+  debug:
+    var: cat_ssl_vars_stdout.stdout_lines
+
+# create certificate
+- name: bash run_all.sh
+  delegate_to: 127.0.0.1
+  run_once: true
+  register: run_all_stdout
+  shell: cd "{{ pwd_stdout.stdout }}/roles/kubernetes/files/cert/"; bash run_all.sh
+  no_log: true
+- name: print run_all.sh
+  run_once: true
+  debug:
+    var: run_all_stdout.stdout_lines
+
+# tree directory
+- name: command -v tree
+  delegate_to: 127.0.0.1
+  run_once: true
+  register: tree_exists
+  shell: command -v tree
+  ignore_errors: yes
+- name: rpm -i "{{ pwd_stdout.stdout }}/roles/kubernetes/files/rpms/tree-1.6.0-10.el7.x86_64.rpm"
+  shell: rpm -i "{{ pwd_stdout.stdout }}/roles/kubernetes/files/rpms/tree-1.6.0-10.el7.x86_64.rpm"
+  when: tree_exists.rc != 0
+  delegate_to: 127.0.0.1
+  run_once: true
+- name: tree "{{ pwd_stdout.stdout }}/roles/kubernetes/files/cert/"
+  delegate_to: 127.0.0.1
+  run_once: true
+  shell: tree "{{ pwd_stdout.stdout }}/roles/kubernetes/files/cert/"
+  register: tree_stdout
+  no_log: true
+- name: print tree result
+  delegate_to: 127.0.0.1
+  run_once: true
+  debug:
+    var: tree_stdout.stdout_lines
+
+# check certificate apiserver.pem
+- name: command -v openssl
+  delegate_to: 127.0.0.1
+  run_once: true
+  register: openssl_exists
+  shell: command -v openssl
+  ignore_errors: yes
+- name: openssl x509 -in apiserver.pem -text -noout
+  shell: openssl x509 -in "{{ pwd_stdout.stdout }}/roles/kubernetes/files/cert/k8s/apiserver.pem" -text -noout
+  register: openssl_result
+  when: openssl_exists.rc == 0
+  no_log: true
+- name: show openssl result
+  delegate_to: 127.0.0.1
+  run_once: true
+  debug:
+    var: openssl_result.stdout_lines

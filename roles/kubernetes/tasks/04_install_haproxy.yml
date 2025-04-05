@@ -1,0 +1,30 @@
+- name: copy haproxy rpms to nodes
+  copy:
+    src: haproxy/
+    dest: /root/haproxy/
+
+- name: install haproxy
+  shell: rpm -i --force --nodeps /root/haproxy/*rpm
+
+- name: add haproxy log local2
+  script: scripts/add_haproxy_log_local2.sh
+
+- name: check if /etc/haproxy/haproxy.cfg.bak is exists
+  stat:
+    path: /etc/haproxy/haproxy.cfg.bak
+  register: file_stat
+- name: backup /etc/haproxy/haproxy.cfg
+  shell: cp /etc/haproxy/haproxy.cfg /etc/haproxy/haproxy.cfg.bak 
+  when: not file_stat.stat.exists
+
+- name: copy haproxy.cfg.j2 to /etc/haproxy/haproxy.cfg
+  template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+
+- name: systemctl enable haproxy.service --now
+  shell: systemctl enable haproxy.service --now
+
+- name: systemctl restart haproxy.service
+  shell: systemctl restart haproxy.service
+

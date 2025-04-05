@@ -1,0 +1,122 @@
+---
+# Source: prometheus/templates/prometheus.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: prometheus
+  name: prometheus
+  namespace: cilium-monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+      name: prometheus-main
+    spec:
+      containers:
+      - args:
+        - --config.file=/etc/prometheus/prometheus.yaml
+        - --storage.tsdb.path=/prometheus/
+        - --log.level=info
+        image: "{{ harbor_hostname }}/prom/prometheus:v2.18.1"
+        imagePullPolicy: IfNotPresent
+        name: prometheus
+        ports:
+        - containerPort: 9090
+          name: webui
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /etc/prometheus
+          name: config-volume
+          readOnly: true
+        - mountPath: /prometheus/
+          name: storage
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      serviceAccount: prometheus-k8s
+      volumes:
+      - configMap:
+          name: prometheus
+        name: config-volume
+      - emptyDir: {}
+        name: storage
+---
+# Source: prometheus/templates/grafana.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: grafana
+    component: core
+  name: grafana
+  namespace: cilium-monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+        - env:
+            - name: GF_PATHS_CONFIG
+              value: /configmap/grafana/grafana-config.ini
+            - name: GF_PATHS_PROVISIONING
+              value: /configmap/grafana/provisioning
+          image: "{{ harbor_hostname }}/grafana/grafana:7.0.1"
+          imagePullPolicy: IfNotPresent
+          name: grafana-core
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /login
+              port: 3000
+              scheme: HTTP
+          volumeMounts:
+            - mountPath: /configmap/grafana
+              name: grafana-config
+              readOnly: true
+            - mountPath: /configmap/dashboards/cilium-dashboard
+              name: cilium-dashboard
+              readOnly: true
+            - mountPath: /configmap/dashboards/cilium-operator-dashboard
+              name: cilium-operator-dashboard
+              readOnly: true
+            - mountPath: /configmap/dashboards/hubble-dashboard
+              name: hubble-dashboard
+              readOnly: true
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      volumes:
+        - configMap:
+            defaultMode: 420
+            items:
+              - key: grafana.ini
+                path: grafana-config.ini
+              - key: prometheus-datasource.yaml
+                path: provisioning/datasources/prometheus.yaml
+              - key: config.yaml
+                path: provisioning/dashboards/config.yaml
+            name: grafana-config
+          name: grafana-config
+        - configMap:
+            defaultMode: 420
+            name: grafana-cilium-dashboard
+          name: cilium-dashboard
+        - configMap:
+            defaultMode: 420
+            name: grafana-cilium-operator-dashboard
+          name: cilium-operator-dashboard
+        - configMap:
+            defaultMode: 420
+            name: grafana-hubble-dashboard
+          name: hubble-dashboard
+

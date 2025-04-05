@@ -1,0 +1,80 @@
+# check cgroup
+- name: check if the file /proc/1/ns/cgroup exists
+  shell: if [ -f /proc/1/ns/cgroup ]; then ls /proc/1/ns/cgroup; else echo 'cgroup /proc/1/ns/cgroup not exists';exit 1; fi
+
+# install cni
+- name: copy cni-plugins-linux-amd64-v1.3.0.tgz to nodes
+  copy:
+    src: containerd/cni-plugins-linux-amd64-v1.3.0.tgz
+    dest: /root/cni-plugins-linux-amd64-v1.3.0.tgz
+- name: mkdir /etc/cni/net.d/
+  file:
+    path: /etc/cni/net.d/
+    state: directory
+- name: mkdir /opt/cni/bin/
+  file:
+    path: /opt/cni/bin/
+    state: directory
+- name: tar -xf /root/cni-plugins-linux-amd64-v1.3.0.tgz -C /opt/cni/bin/
+  shell: tar -xf /root/cni-plugins-linux-amd64-v1.3.0.tgz -C /opt/cni/bin/
+
+# install docker
+- name: copy docker/ to nodes
+  copy:
+    src: docker/
+    dest: /root/docker/
+- name: rpm -i --force --nodeps /root/docker/rpms/*.rpm
+  shell: rpm -i --force --nodeps /root/docker/rpms/*.rpm
+
+
+# config docker
+- name: mkdir "{{ docker_data_root }}" -pv
+  file:
+    path: "{{ docker_data_root }}"
+    state: directory
+  when: docker_data_root is defined and docker_data_root | length > 0
+- name: copy daemon.json.j2 to /etc/docker/daemon.json
+  template:
+    src: daemon.json.j2
+    dest: /etc/docker/daemon.json
+
+# set proxy
+#- name: mkdir /etc/systemd/system/docker.service.d/
+#  file:
+#    path: /etc/systemd/system/docker.service.d/
+#    state: directory
+#- name: copy proxy.conf.j2 to /etc/systemd/system/docker.service.d/proxy.conf
+#  template:
+#    src: proxy.conf.j2
+#    dest: /etc/systemd/system/docker.service.d/proxy.conf
+
+- name: copy docker.socket to /usr/lib/systemd/system/docker.socket
+  template:
+    src: docker.socket.j2
+    dest: /usr/lib/systemd/system/docker.socket
+- name: systemctl enable docker --now
+  shell: systemctl enable docker --now
+- name: docker info
+  shell: docker info
+  register: docker_info
+  no_log: true
+- name: display docker info
+  debug:
+    var: docker_info.stdout_lines
+
+# cri-docker
+- name: docker/cri-dockerd/cri-dockerd to /usr/local/bin/
+  copy:
+    src: docker/cri-dockerd/cri-dockerd
+    dest: /usr/local/bin/
+    mode: "0755"
+- name: copy cri-docker.service.j2 to /usr/lib/systemd/system/cri-docker.service
+  template:
+    src: cri-docker.service.j2
+    dest: /usr/lib/systemd/system/cri-docker.service
+- name: copy cri-docker.socket.j2 to /usr/lib/systemd/system/cri-docker.socket
+  template:
+    src: cri-docker.socket.j2
+    dest: /usr/lib/systemd/system/cri-docker.socket
+- name: systemctl enable cri-docker --now
+  shell: systemctl enable cri-docker --now

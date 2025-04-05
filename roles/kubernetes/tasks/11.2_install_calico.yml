@@ -1,0 +1,23 @@
+# If the Pod IP shows 10.88.0.0, remove the file /etc/cni/net.d/10-containerd-net.conflist, please refer to https://zhuanlan.zhihu.com/p/608369342
+#  shell: if [ -f /etc/cni/net.d/10-containerd-net.conflist ]; then mv /etc/cni/net.d/10-containerd-net.conflist /root/10-containerd-net.conflist; fi
+- name: delete /etc/cni/net.d/10-containerd-net.conflist
+  file:
+    path: /etc/cni/net.d/10-containerd-net.conflist
+    state: absent
+
+- name: ctr ns create k8s.io
+  shell: line=`ctr ns ls | grep k8s.io | wc -l`; if [ $line -eq 0 ]; then ctr ns create k8s.io; fi;
+
+- name: mkdir /root/calico/
+  file:
+    path: /root/calico/
+    state: directory
+- name: copy calico.tar to node
+  copy:
+    src: calico/
+    dest: /root/calico/
+
+- name: copy calico-typha.yaml.j2 to nodes
+  template:
+    src: calico-typha.yaml.j2
+    dest: /root/calico/calico-typha.yaml

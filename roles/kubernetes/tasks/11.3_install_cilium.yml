@@ -1,0 +1,29 @@
+# If the Pod IP shows 10.88.0.0, remove the file /etc/cni/net.d/10-containerd-net.conflist, please refer to https://zhuanlan.zhihu.com/p/608369342
+#  shell: if [ -f /etc/cni/net.d/10-containerd-net.conflist ]; then mv /etc/cni/net.d/10-containerd-net.conflist /root/10-containerd-net.conflist; fi
+- name: check if /etc/cni/net.d/10-containerd-net.conflist exists
+  file:
+    path: /etc/cni/net.d/10-containerd-net.conflist
+    state: absent
+
+- name: mkdir /root/cilium/
+  file:
+    path: /root/cilium/
+    state: directory
+- name: copy cilium/ to nodes
+  copy:
+    src: cilium/
+    dest: /root/cilium/
+
+# copy config to cilium directory
+- name: tar -xf cilium-1.14.0.tgz
+  shell: cd /root/cilium/; tar -xf cilium-1.14.0.tgz
+- name: copy values.yaml.j2 to nodes
+  template:
+    src: cilium-values.yaml.j2
+    dest: /root/cilium/cilium/values.yaml
+
+# test monitoring
+- name: copy monitoring-test-prometheus-grafana.yaml.j2 to /root/cilium/
+  template:
+    src: monitoring-test-prometheus-grafana.yaml.j2
+    dest: /root/cilium/monitoring/monitoring-test-prometheus-grafana.yaml

@@ -1,0 +1,38 @@
+- name: mkdir /root/prometheus/
+  file:
+    path: /root/prometheus/
+    state: directory
+- name: copy prometheus/ to nodes
+  copy:
+    src: prometheus/
+    dest: /root/prometheus/
+
+- name: tar -xf prometheus-23.1.0.tgz
+  shell: cd /root/prometheus/; tar -xf prometheus-23.1.0.tgz
+- name: copy prometheus-values.yaml.j2 to /root/prometheus/prometheus/
+  template:
+    src: prometheus-values.yaml.j2
+    dest: /root/prometheus/prometheus/values.yaml
+
+- name: copy prometheus-alertmanager-values.yaml.j2 to /root/prometheus/prometheus/charts/alertmanager/
+  template:
+    src: prometheus-alertmanager-values.yaml.j2
+    dest: /root/prometheus/prometheus/charts/alertmanager/values.yaml
+
+- name: copy prometheus-kube-state-metrics-values.yaml.j2 to /root/prometheus/prometheus/charts/kube-state-metrics/
+  template:
+    src: prometheus-kube-state-metrics-values.yaml.j2
+    dest: /root/prometheus/prometheus/charts/kube-state-metrics/values.yaml
+
+- name: copy prometheus-node-exporter-values.yaml.j2 to /root/prometheus/prometheus/charts/prometheus-node-exporter/
+  template:
+    src: prometheus-node-exporter-values.yaml.j2
+    dest: /root/prometheus/prometheus/charts/prometheus-node-exporter/values.yaml
+
+- name: copy prometheus-pushgateway-values.yaml.j2 to /root/prometheus/prometheus/charts/prometheus-pushgateway/
+  template:
+    src: prometheus-pushgateway-values.yaml.j2
+    dest: /root/prometheus/prometheus/charts/prometheus-pushgateway/values.yaml
+
+- name: mkdir /data/prometheus -pv
+  shell: mkdir /data/prometheus -pv; chmod -R 777 /data/

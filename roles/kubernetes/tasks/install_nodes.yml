@@ -1,0 +1,36 @@
+#
+# install kubernetes work nodes
+#
+
+# init
+- name: check init is ok
+  script: scripts/check_init.sh
+  register: check_init
+- name: print check init
+  debug:
+    var: check_init.stdout
+
+- name: 00.1_init_system.yml
+  include_tasks: 00.1_init_system.yml
+  when: check_init.stdout == "InitNotOk"
+
+
+# install
+- name: check if the node is installed
+  script: scripts/check_node_isok.sh
+  register: check_node
+- name: print check node
+  debug:
+    var: check_node.stdout
+
+- name: 17.1_install_nodes_containerd.yml
+  include_tasks: 17.1_install_nodes_containerd.yml
+  when:
+  - check_node.stdout == "NodeIsNotOk"
+  - container_runtime  == "containerd"
+
+- name: 17.2_install_nodes_docker.yml
+  include_tasks: 17.2_install_nodes_docker.yml
+  when: 
+  - check_node.stdout == "NodeIsNotOk"
+  - container_runtime  == "docker"
